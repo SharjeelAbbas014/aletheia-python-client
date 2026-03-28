@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aletheia"
+version = "0.1.0"
+description = "Python SDK for the Temporal Memory engine with local-first sidecar support."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Aletheia" }]
+license = { text = "MIT" }
+keywords = ["memory", "retrieval", "sdk", "temporal-memory", "aletheia"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+
