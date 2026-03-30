@@ -18,8 +18,8 @@ hits = client.query("What coffee do I prefer?", entity_id="user-123")
 from aletheia import AletheiaClient
 
 client = AletheiaClient.from_cloud(
-    "https://memory.example.com",
-    api_key="tm_live_xxx",
+    "http://143.110.246.15:3000",
+    api_key="XXX1111AAA",
 )
 ```
 
@@ -41,4 +41,3 @@ The SDK starts the Rust engine with:
 - `TEMPORAL_MEMORY_PORT`
 - `TEMPORAL_MEMORY_DATA_DIR`
 - `TEMPORAL_MEMORY_API_KEY` when a local key is configured
-

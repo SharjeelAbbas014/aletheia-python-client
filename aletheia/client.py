@@ -20,6 +20,7 @@ from urllib.request import Request, urlopen
 ENGINE_BINARY_NAME = "temporal_memory.exe" if os.name == "nt" else "temporal_memory"
 DEFAULT_TIMEOUT = 30.0
 DEFAULT_STARTUP_TIMEOUT = 60.0
+DEFAULT_TEST_API_KEY = "XXX1111AAA"
 
 
 class AletheiaError(RuntimeError):
@@ -112,6 +113,13 @@ def _default_cache_dir() -> Path:
     return base / "aletheia"
 
 
+def _default_api_key() -> str:
+    return (
+        _env_first("ALETHEIA_API_KEY", "TEMPORAL_MEMORY_API_KEY")
+        or DEFAULT_TEST_API_KEY
+    )
+
+
 def _platform_tag() -> str:
     os_name = platform.system().lower()
     if os_name.startswith("darwin"):
@@ -173,6 +181,9 @@ class LocalEngineManager:
     process: subprocess.Popen[Any] | None = field(default=None, init=False, repr=False)
 
     def __post_init__(self) -> None:
+        if not self.api_key:
+            self.api_key = _default_api_key()
+
         cache_dir_value = self.cache_dir or Path(
             _env_first("ALETHEIA_ENGINE_CACHE_DIR", "TEMPORAL_MEMORY_ENGINE_CACHE_DIR")
             or _default_cache_dir()
@@ -295,18 +306,31 @@ class LocalEngineManager:
         raise AletheiaError("Timed out waiting for the local engine to become healthy.")
 
     def health(self) -> dict[str, Any]:
-        request = Request(urljoin(self.base_url, "/v1/health"), method="GET")
+        headers = self._auth_headers()
+        request = Request(urljoin(self.base_url, "/v1/health"), headers=headers, method="GET")
         try:
             with urlopen(request, timeout=5) as response:
                 return json.loads(response.read().decode("utf-8"))
         except HTTPError as exc:
             if exc.code == 404:
-                fallback = Request(urljoin(self.base_url, "/health"), method="GET")
+                fallback = Request(
+                    urljoin(self.base_url, "/health"),
+                    headers=headers,
+                    method="GET",
+                )
                 with urlopen(fallback, timeout=5) as response:
                     return json.loads(response.read().decode("utf-8"))
             raise AletheiaHTTPError(exc.code, exc.read().decode("utf-8"), request.full_url) from exc
         except URLError as exc:
             raise AletheiaError(f"Local engine is not reachable at {self.base_url}") from exc
+
+    def _auth_headers(self) -> dict[str, str]:
+        if not self.api_key:
+            return {}
+        return {
+            "x-api-key": self.api_key,
+            "Authorization": f"Bearer {self.api_key}",
+        }
 
     def _cached_binary_path(self, version: str | None) -> Path:
         version_dir = version or "current"
@@ -370,7 +394,7 @@ class AletheiaClient:
         engine_manager: LocalEngineManager | None = None,
     ) -> None:
         self.base_url = base_url.rstrip("/")
-        self.api_key = api_key
+        self.api_key = api_key or _default_api_key()
         self.timeout = timeout
         self._engine_manager = engine_manager
 
@@ -534,6 +558,7 @@ class AletheiaClient:
             headers["Content-Type"] = "application/json"
         if self.api_key:
             headers["x-api-key"] = self.api_key
+            headers["Authorization"] = f"Bearer {self.api_key}"
 
         url = urljoin(f"{self.base_url}/", path.lstrip("/"))
         request = Request(url, data=body, headers=headers, method=method)
